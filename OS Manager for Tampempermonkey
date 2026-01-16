@@ -101,242 +101,240 @@
 
   // -------------------- UI (NAV ICON + CENTER MODAL + TABS) --------------------
   GM_addStyle(`
-    /* navbar icon button */
-#osmgr-navbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 0 6px;
-  margin-left: 12px;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  /* ⬇ POSUN DOLŮ */
-  transform: translateY(7px);
-}
+  /* navbar icon button */
+  #osmgr-navbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 6px;
+    margin-left: 12px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    transform: translateY(7px);
+  }
 
-/* samotná ikonka */
-#osmgr-navbtn img {
-  height: 25px;                 /* lehce větší */
-  width: auto;
-  display: block;
+  #osmgr-navbtn img {
+    height: 25px;
+    width: auto;
+    display: block;
+    filter:
+      hue-rotate(350deg)
+      saturate(1.4)
+      brightness(1.1)
+      drop-shadow(0 1px 3px rgba(0,0,0,0.45));
+    transition: transform 0.15s ease;
+  }
 
-  /* MODRÝ TÓN místo červeného */
-  filter:
-    hue-rotate(350deg)
-    saturate(1.4)
-    brightness(1.1)
-    drop-shadow(0 1px 3px rgba(0,0,0,0.45));
+  #osmgr-navbtn:hover img {
+    transform: translateY(-1px) scale(1.05);
+    filter:
+      hue-rotate(100deg)
+      saturate(1.6)
+      brightness(1.15)
+      drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+  }
 
-  transition: transform 0.15s ease;
-}
+  #osmgr-navbtn:active img { transform: translateY(0) scale(0.97); }
 
-/* ČERVENÁ – hover */
-#osmgr-navbtn:hover img {
-  transform: translateY(-1px) scale(1.05);
-  filter:
-    hue-rotate(100deg)
-    saturate(1.6)
-    brightness(1.15)
-    drop-shadow(0 2px 6px rgba(0,0,0,0.55));
-}
+  #osmgr-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    background: rgba(0,0,0,0.55);
+    display: none;
+  }
 
-/* klik */
-#osmgr-navbtn:active img {
-  transform: translateY(0) scale(0.97);
-}
+  #osmgr-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+  }
 
-    /* overlay + modal */
-    #osmgr-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 2147483646;
-      background: rgba(0,0,0,0.55);
-      display: none;
-    }
-    #osmgr-modal {
-      position: fixed;
-      inset: 0;
-      z-index: 2147483647;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 18px;
-    }
-    #osmgr-window {
-      width: 1100px;
-      max-width: calc(92vw);
-      max-height: calc(88vh);
-      overflow: hidden;
-      border-radius: 14px;
-      background: #111;
-      color: #fff;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
-      display: grid;
-      grid-template-rows: auto 1fr;
-    }
+  #osmgr-window {
+    width: 1100px;
+    max-width: 92vw;
+    max-height: 88vh;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #111;
+    color: #fff;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
 
-    /* header */
-    .osmgr-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 12px 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.10);
-    }
-    .osmgr-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 800;
-      font-size: 14px;
-      letter-spacing: 0.2px;
-    }
-    .osmgr-title img {
-      height: 22px;
-      width: auto;
-    }
-    .osmgr-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .osmgr-close {
-      border: 0;
-      background: rgba(255,255,255,0.10);
-      color: #fff;
-      padding: 6px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 700;
-    }
-    .osmgr-close:hover { background: rgba(255,255,255,0.16); }
+  .osmgr-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 12px 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+  }
 
-    .osmgr-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.80);
-      user-select: none;
-    }
+  .osmgr-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.2px;
+  }
 
-    /* body layout: tabs + content */
-    .osmgr-body {
-      display: grid;
-      grid-template-columns: 280px 1fr;
-      min-height: 0;
-    }
-    .osmgr-tabs {
-      border-right: 1px solid rgba(255,255,255,0.10);
-      padding: 10px;
-      overflow: auto;
-    }
-    .osmgr-tab {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 10px;
-      border-radius: 12px;
-      cursor: pointer;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.04);
-      margin-bottom: 8px;
-    }
-    .osmgr-tab:hover { background: rgba(255,255,255,0.07); }
-    .osmgr-tab.active {
-      background: rgba(43,124,255,0.20);
-      border-color: rgba(43,124,255,0.38);
-    }
-    .osmgr-gear {
-  border: 0;
-  background: rgba(255,255,255,0.08);
-  color: #fff;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex: 0 0 auto;
-}
-.osmgr-gear:hover { background: rgba(255,255,255,0.14); }
-.osmgr-gear:active { transform: scale(0.98); }
-.osmgr-gear span { font-size: 16px; line-height: 1; }
-    }
-    .osmgr-tab-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-    }
-    .osmgr-dot {
-      width: 10px; height: 10px;
-      border-radius: 999px;
-      flex: 0 0 auto;
-      box-shadow: 0 0 0 2px rgba(0,0,0,0.45);
-    }
-    .osmgr-dot.on { background: #2ecc71; }
-    .osmgr-dot.off { background: #e74c3c; }
-    .osmgr-tab-name {
-      font-weight: 800;
-      font-size: 13px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+  .osmgr-title img { height: 22px; width: auto; }
 
-    .osmgr-content {
-      padding: 14px 14px 16px 14px;
-      overflow: auto;
-      min-height: 0;
-    }
-    .osmgr-h2 {
-      margin: 0 0 8px 0;
-      font-size: 16px;
-      font-weight: 900;
-    }
-    .osmgr-muted {
-      color: rgba(255,255,255,0.72);
-      font-size: 12px;
-      line-height: 1.4;
-      margin: 0 0 12px 0;
-    }
-    .osmgr-card {
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.04);
-      border-radius: 14px;
-      padding: 12px;
-      margin-top: 10px;
-    }
-    .osmgr-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 10px 0;
-      flex-wrap: wrap;
-    }
-    .osmgr-btn {
-      border: 0;
-      background: #2b7cff;
-      color: #fff;
-      padding: 8px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 800;
-      font-size: 12px;
-    }
-    .osmgr-btn:hover { filter: brightness(1.05); }
+  .osmgr-actions { display: flex; align-items: center; gap: 10px; }
 
-    @media (max-width: 720px) {
-      .osmgr-body { grid-template-columns: 1fr; }
-      .osmgr-tabs { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
-    }
-  `);
+  .osmgr-close {
+    border: 0;
+    background: rgba(255,255,255,0.10);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .osmgr-close:hover { background: rgba(255,255,255,0.16); }
+
+  .osmgr-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.80);
+    user-select: none;
+  }
+
+  .osmgr-body {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    min-height: 0;
+  }
+
+  .osmgr-tabs {
+    border-right: 1px solid rgba(255,255,255,0.10);
+    padding: 10px;
+    overflow: auto;
+  }
+
+  .osmgr-tab {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    margin-bottom: 8px;
+  }
+
+  .osmgr-tab:hover { background: rgba(255,255,255,0.07); }
+
+  .osmgr-tab.active {
+    background: rgba(43,124,255,0.20);
+    border-color: rgba(43,124,255,0.38);
+  }
+
+  .osmgr-tab-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .osmgr-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    flex: 0 0 auto;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.45);
+  }
+  .osmgr-dot.on { background: #2ecc71; }
+  .osmgr-dot.off { background: #e74c3c; }
+
+  .osmgr-tab-name {
+    font-weight: 800;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .osmgr-gear {
+    border: 0;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .osmgr-gear:hover { background: rgba(255,255,255,0.14); }
+  .osmgr-gear:active { transform: scale(0.98); }
+  .osmgr-gear span { font-size: 16px; line-height: 1; }
+
+  .osmgr-content {
+    padding: 14px 14px 16px 14px;
+    overflow: auto;
+    min-height: 0;
+  }
+
+  .osmgr-h2 { margin: 0 0 8px 0; font-size: 16px; font-weight: 900; }
+
+  .osmgr-muted {
+    color: rgba(255,255,255,0.72);
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 0 0 12px 0;
+  }
+
+  .osmgr-card {
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    border-radius: 14px;
+    padding: 12px;
+    margin-top: 10px;
+  }
+
+  .osmgr-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+
+  .osmgr-btn {
+    border: 0;
+    background: #2b7cff;
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 800;
+    font-size: 12px;
+  }
+  .osmgr-btn:hover { filter: brightness(1.05); }
+
+  @media (max-width: 720px) {
+    .osmgr-body { grid-template-columns: 1fr; }
+    .osmgr-tabs { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
+  }
+`);
 
   function removeOldUI() {
     document.getElementById('osmgr-navbtn')?.remove();
@@ -381,7 +379,6 @@
       settings.debug = CORE.debug;
       saveSettings(settings);
       log('Debug:', CORE.debug);
-      // refresh dots (debug change is global, but we keep UI consistent)
     };
     const dbgText = document.createElement('span');
     dbgText.textContent = 'Debug';
@@ -411,7 +408,6 @@
     win.append(header, body);
     modal.append(win);
 
-    // close handlers
     overlay.addEventListener('click', hideModal);
     modal.addEventListener('click', (e) => {
       if (e.target === modal) hideModal();
@@ -428,9 +424,13 @@
     return modal && modal.style.display === 'flex';
   }
 
+  // ✅ stav: který modul má otevřený detail (null = dashboard)
+  let OSMGR_SELECTED_MODULE_ID = null;
+
   function showModal(selectModuleId = null) {
     ensureModal();
-    renderTabsAndContent(selectModuleId ?? null);
+    OSMGR_SELECTED_MODULE_ID = (selectModuleId ?? null);
+    renderTabsAndContent(OSMGR_SELECTED_MODULE_ID);
 
     document.getElementById('osmgr-overlay').style.display = 'block';
     const modal = document.getElementById('osmgr-modal');
@@ -444,15 +444,7 @@
     if (modal) modal.style.display = 'none';
   }
 
-  function renderTabsAndContent(selectModuleId = null) {
-  const tabsEl = document.getElementById('osmgr-tabs');
-  const contentEl = document.getElementById('osmgr-content');
-  if (!tabsEl || !contentEl) return;
-
-  tabsEl.innerHTML = '';
-
-  // Když není vybraný modul, neukazuj detail žádného
-  if (!selectModuleId) {
+  function renderDashboard(contentEl) {
     contentEl.innerHTML = `
       <div class="osmgr-h2">OS Manager</div>
       <div class="osmgr-muted">
@@ -461,63 +453,80 @@
     `;
   }
 
-  const setActiveRow = (moduleIdOrNull) => {
-    tabsEl.querySelectorAll('.osmgr-tab').forEach((t) => {
-      t.classList.toggle('active', !!moduleIdOrNull && t.dataset.moduleId === moduleIdOrNull);
-    });
-  };
+  function renderTabsAndContent(_ignored = null) {
+    const tabsEl = document.getElementById('osmgr-tabs');
+    const contentEl = document.getElementById('osmgr-content');
+    if (!tabsEl || !contentEl) return;
 
-  const openModuleDetail = (moduleId) => {
-    setActiveRow(moduleId);
-    renderModuleContent(moduleId);
-  };
+    tabsEl.innerHTML = '';
 
-  for (const mod of CORE.modules) {
-    const enabled = isEnabled(mod.id, mod.defaultEnabled);
+    if (!OSMGR_SELECTED_MODULE_ID) renderDashboard(contentEl);
 
-    const tab = document.createElement('div');
-    tab.className = 'osmgr-tab' + (mod.id === selectModuleId ? ' active' : '');
-    tab.dataset.moduleId = mod.id;
+    const setActiveRow = (moduleIdOrNull) => {
+      tabsEl.querySelectorAll('.osmgr-tab').forEach((t) => {
+        t.classList.toggle('active', !!moduleIdOrNull && t.dataset.moduleId === moduleIdOrNull);
+      });
+    };
 
-    const left = document.createElement('div');
-    left.className = 'osmgr-tab-left';
+    const openDetail = (moduleId) => {
+      OSMGR_SELECTED_MODULE_ID = moduleId;
+      setActiveRow(moduleId);
+      renderModuleContent(moduleId);
+    };
 
-    const dot = document.createElement('div');
-    dot.className = `osmgr-dot ${enabled ? 'on' : 'off'}`;
-    dot.title = enabled ? 'Modul zapnutý' : 'Modul vypnutý';
+    const closeDetail = () => {
+      OSMGR_SELECTED_MODULE_ID = null;
+      setActiveRow(null);
+      renderDashboard(contentEl);
+    };
 
-    const name = document.createElement('div');
-    name.className = 'osmgr-tab-name';
-    name.textContent = mod.name;
+    for (const mod of CORE.modules) {
+      const enabled = isEnabled(mod.id, mod.defaultEnabled);
 
-    left.append(dot, name);
+      const tab = document.createElement('div');
+      tab.className = 'osmgr-tab' + (mod.id === OSMGR_SELECTED_MODULE_ID ? ' active' : '');
+      tab.dataset.moduleId = mod.id;
 
-    // ⚙️ tlačítko pro otevření detailu
-    const gear = document.createElement('button');
-    gear.className = 'osmgr-gear';
-    gear.type = 'button';
-    gear.title = 'Nastavení modulu';
-    gear.innerHTML = '<span>⚙️</span>';
+      const left = document.createElement('div');
+      left.className = 'osmgr-tab-left';
 
-    gear.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openModuleDetail(mod.id);
-    });
+      const dot = document.createElement('div');
+      dot.className = `osmgr-dot ${enabled ? 'on' : 'off'}`;
+      dot.title = enabled ? 'Modul zapnutý' : 'Modul vypnutý';
 
-    // Klik na řádek jen zvýrazní (neotevře detail)
-    tab.addEventListener('click', () => {
-      setActiveRow(mod.id);
-      if (!selectModuleId) {
-        // nech placeholder, jen zvýrazni řádek
-      }
-    });
+      const name = document.createElement('div');
+      name.className = 'osmgr-tab-name';
+      name.textContent = mod.name;
 
-    tab.append(left, gear);
-    tabsEl.append(tab);
+      left.append(dot, name);
+
+      const gear = document.createElement('button');
+      gear.className = 'osmgr-gear';
+      gear.type = 'button';
+      gear.title = 'Nastavení modulu';
+      gear.innerHTML = '<span>⚙️</span>';
+
+      gear.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (OSMGR_SELECTED_MODULE_ID === mod.id) closeDetail();
+        else openDetail(mod.id);
+      });
+
+      tab.addEventListener('click', () => {
+        setActiveRow(mod.id);
+      });
+
+      tab.append(left, gear);
+      tabsEl.append(tab);
+    }
+
+    if (OSMGR_SELECTED_MODULE_ID) {
+      setActiveRow(OSMGR_SELECTED_MODULE_ID);
+      renderModuleContent(OSMGR_SELECTED_MODULE_ID);
+    }
   }
-}
-
 
   function refreshDots() {
     const tabsEl = document.getElementById('osmgr-tabs');
@@ -563,6 +572,7 @@
 
     const enableLabel = document.createElement('label');
     enableLabel.className = 'osmgr-toggle';
+
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = enabled;
@@ -570,23 +580,178 @@
       setEnabled(mod.id, cb.checked);
       refreshDots();
     };
+
     const txt = document.createElement('span');
     txt.textContent = cb.checked ? 'Aktivní' : 'Neaktivní';
-
     cb.addEventListener('change', () => {
       txt.textContent = cb.checked ? 'Aktivní' : 'Neaktivní';
     });
 
     enableLabel.append(cb, txt);
-
-    const info = document.createElement('div');
-    info.className = 'osmgr-muted';
-    info.textContent = 'Pozn.: detailní nastavení tohoto modulu doplníme později.';
-
     row.append(enableLabel);
-    card.append(row, info);
+    card.append(row);
 
-    // extra: quick note about refresh (only if module is currently running)
+    if (moduleId === 'nearest_unit_send_next') {
+      const HR = document.createElement('div');
+      HR.style.height = '1px';
+      HR.style.background = 'rgba(255,255,255,0.12)';
+      HR.style.margin = '12px 0';
+
+      const title = document.createElement('div');
+      title.className = 'osmgr-muted';
+      title.style.fontWeight = '800';
+      title.style.marginBottom = '10px';
+      title.textContent = 'Zde zvolte jednotky které chcete odesílat:';
+
+      const VEHICLE_TYPES = [
+        { id: 0, name: 'CAS 20' },
+        { id: 1, name: 'CAS 30' },
+        { id: 2, name: 'AZ' },
+        { id: 3, name: 'VEA' },
+        { id: 4, name: 'TA' },
+        { id: 5, name: 'RZP' },
+        { id: 6, name: 'KHA' },
+        { id: 7, name: 'TACH' },
+        { id: 8, name: 'Policejní automobil' },
+        { id: 9, name: 'Vrtulník LZS' },
+        { id: 10, name: 'AP' },
+        { id: 11, name: 'Policejní vrtulník' },
+        { id: 12, name: 'Obrněné vozidlo URNA' },
+        { id: 13, name: 'Vozidlo Kynologů PČR' },
+        { id: 14, name: 'Policejní motocykl' },
+        { id: 15, name: 'URNA SUV' },
+        { id: 16, name: 'PPLA' },
+        { id: 17, name: 'MOS' },
+        { id: 18, name: 'Vozidlo vyšetřovatelů DN' },
+        { id: 19, name: 'Vozidlo pyrotechnika PČR' },
+        { id: 20, name: 'Přívěs se člunem' },
+        { id: 21, name: 'Přívěs se člunem VZS ČČK' },
+        { id: 22, name: 'Potápěčský automobil' },
+        { id: 23, name: 'SUV VZS ČČK' },
+        { id: 24, name: 'Dodávka VZS ČČK' },
+        { id: 25, name: 'RV' },
+        { id: 26, name: 'IP' },
+        { id: 27, name: 'RLP' },
+        { id: 28, name: 'VYA' },
+        { id: 29, name: 'AJ' },
+        { id: 30, name: 'DA' },
+        { id: 31, name: 'RZA' },
+        { id: 32, name: 'Dodávka pořádkové jednotky' },
+        { id: 33, name: 'Policejní anton' },
+        { id: 34, name: 'Vodní dělo pořádkové policie' },
+        { id: 35, name: 'Vozidlo velitele PČR' },
+        { id: 36, name: 'Monitorovací vozidlo' },
+        { id: 37, name: 'Technické vozidlo s LRAD' },
+        { id: 38, name: 'Malý přepravník koní' },
+        { id: 39, name: 'Nákladní přepravník koní' },
+        { id: 40, name: 'Letištní speciál' },
+        { id: 41, name: 'Záchranné evakuační schody' },
+        { id: 42, name: 'Přívěs s motorovým čerpadlem' },
+        { id: 43, name: 'ANK' },
+        { id: 44, name: 'Sorbentový kontejner' },
+        { id: 45, name: 'Chemický kontejner' },
+        { id: 46, name: 'Plynový hasící kontejner' },
+        { id: 47, name: 'Pěnidlový kontejner' },
+        { id: 48, name: 'Hadicový kontejner' },
+        { id: 49, name: 'Technický kontejner' },
+        { id: 50, name: 'Týlový kontejner' },
+        { id: 51, name: 'Kontejnerová elektrocentrála' },
+        { id: 52, name: 'Kontejner pro nouzové zastřešení' },
+        { id: 53, name: 'Lodní kontejner' },
+        { id: 54, name: 'Přeprava ambulancí' },
+        { id: 55, name: 'Ambulance pro urgentní přepravu' },
+        { id: 56, name: 'CAS 20 drážních hasičů' },
+        { id: 57, name: 'CAS 30 drážních hasičů' },
+        { id: 58, name: 'Vozidlo s nakolejovacím zařízením' },
+        { id: 59, name: 'Dvoucestný automobil' },
+        { id: 60, name: 'Vozidlo drážního vyšetřovatele' },
+        { id: 61, name: 'Vyprošťovací tank' },
+        { id: 62, name: 'Sněžný skútr' },
+        { id: 63, name: 'Sněhový přívěs' },
+        { id: 64, name: 'Horská čtyřkolka' },
+        { id: 65, name: 'Přívěs na horskou čtyřkolku' },
+        { id: 66, name: 'Salašnický pes' },
+        { id: 67, name: 'Horská záchranná dodávka' },
+      ];
+
+      const DEFAULT_ALLOWED = [1, 8];
+      const saved = getModuleSetting(moduleId, 'allowedTypeIds', DEFAULT_ALLOWED);
+      const allowedSet = new Set(
+        (Array.isArray(saved) ? saved : DEFAULT_ALLOWED)
+          .map((x) => parseInt(x, 10))
+          .filter((x) => Number.isFinite(x))
+      );
+
+      const list = document.createElement('div');
+      list.style.display = 'grid';
+      list.style.gridTemplateColumns = '1fr';
+      list.style.gap = '8px';
+
+      const persist = () => {
+        const arr = Array.from(allowedSet.values()).sort((a, b) => a - b);
+        setModuleSetting(moduleId, 'allowedTypeIds', arr);
+      };
+
+      for (const vt of VEHICLE_TYPES) {
+        const line = document.createElement('label');
+        line.className = 'osmgr-toggle';
+        line.style.display = 'flex';
+        line.style.alignItems = 'center';
+        line.style.justifyContent = 'space-between';
+        line.style.gap = '10px';
+        line.style.padding = '8px 10px';
+        line.style.border = '1px solid rgba(255,255,255,0.10)';
+        line.style.borderRadius = '12px';
+        line.style.background = 'rgba(255,255,255,0.03)';
+
+        const left = document.createElement('div');
+        left.style.display = 'flex';
+        left.style.alignItems = 'center';
+        left.style.gap = '10px';
+        left.style.minWidth = '0';
+
+        const c = document.createElement('input');
+        c.type = 'checkbox';
+        c.checked = allowedSet.has(vt.id);
+
+        const name = document.createElement('div');
+        name.style.fontWeight = '800';
+        name.style.fontSize = '12px';
+        name.style.whiteSpace = 'nowrap';
+        name.style.overflow = 'hidden';
+        name.style.textOverflow = 'ellipsis';
+        name.textContent = vt.name;
+
+        const small = document.createElement('div');
+        small.style.fontSize = '11px';
+        small.style.color = 'rgba(255,255,255,0.60)';
+        small.textContent = `ID: ${vt.id}`;
+
+        left.append(c, name);
+        line.append(left, small);
+
+        c.addEventListener('change', () => {
+          if (c.checked) allowedSet.add(vt.id);
+          else allowedSet.delete(vt.id);
+          persist();
+        });
+
+        list.append(line);
+      }
+
+      const hint = document.createElement('div');
+      hint.className = 'osmgr-muted';
+      hint.style.marginTop = '10px';
+      hint.textContent = 'Zaškrtnuté = modul tyto typy může vybrat. Nezaškrtnuté = ignoruje. Default: CAS 30 + Policejní automobil.';
+
+      card.append(HR, title, list, hint);
+    } else {
+      const info = document.createElement('div');
+      info.className = 'osmgr-muted';
+      info.textContent = 'Pozn.: detailní nastavení tohoto modulu doplníme později.';
+      card.append(info);
+    }
+
     const note = document.createElement('div');
     note.className = 'osmgr-muted';
     note.textContent = 'Tip: pokud modul vypneš/zapneš, někdy je nejlepší refresh stránky, aby se změna plně projevila.';
@@ -595,12 +760,11 @@
     contentEl.append(h2, desc, card, note);
   }
 
+  // ✅ DOPLNĚNO: insertNavbarIcon (chybělo, proto padal BOOT)
   function insertNavbarIcon() {
-    // cílový element (rodič loga, který jsi poslal)
     const brandAnchor = document.querySelector('a.navbar-brand.hidden-xs');
     if (!brandAnchor) return false;
 
-    // pokud už existuje, nic nedělej
     if (document.getElementById('osmgr-navbtn')) return true;
 
     const btn = document.createElement('button');
@@ -612,7 +776,6 @@
     img.src = ICON_URL;
     img.alt = 'OS Manager';
 
-    // fallback kdyby externí obrázek nešel načíst (CSP apod.)
     img.addEventListener('error', () => {
       btn.textContent = '🚨';
       btn.style.fontSize = '18px';
@@ -627,35 +790,20 @@
       showModal();
     });
 
-    // vložit hned napravo od loga (anchor)
     brandAnchor.insertAdjacentElement('afterend', btn);
     return true;
   }
 
-  // -------------------- MODULE: NearestUnit --------------------
+  // -------------------- MODULE: FastSend --------------------
   registerModule({
     id: 'nearest_unit_send_next',
-    name: 'Nearest Unit → Send+Next (N)',
-    description: 'Na detailu mise stiskni N: vybere nejbližší jednotku (čas), vyfiltruje výjimky, klikne na šipku (odeslat+další).',
+    name: 'Rychlé odesílání',
+    description: 'Na detailu mise stiskni N: vybere nejbližší povolený typ jednotky (čas), klikne na šipku (odeslat+další).',
     defaultEnabled: true,
     runOn: 'mission',
 
     init(ctx) {
-      const excludedNameRegex = new RegExp(
-        [
-          '\\b(vrtulník|helicopter|heli)\\b',
-          'kryštof',
-          'ls\\s*pčr',
-          '\\bRZP\\b',
-          '\\bRLP\\b',
-          '\\bRV\\b',
-          'inspektor\\s*provozu',
-          '\\bkontejner(y|ů|u|a)?\\b',
-          'nosič(e)?\\s*kontejner(u|ů|a|y)?',
-          'automobil(ový|ove)?\\s*nosič\\s*kontejner'
-        ].join('|'),
-        'i'
-      );
+      const MODULE_ID = 'nearest_unit_send_next';
 
       const vehicleContainers = [
         '#vehicle_show_table',
@@ -663,7 +811,7 @@
         '#vehicle_select_table',
         'table#vehicle_table',
         'table.vehicles',
-        'table'
+        'table',
       ];
 
       const loadMoreSelectorExact = 'a.missing_vehicles_load[href*="missing_vehicles"]';
@@ -673,7 +821,12 @@
       let loadMoreUsedThisRun = false;
 
       function parseTimeToSeconds(text) {
-        const t = String(text || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+        const t = String(text || '')
+          .replace(/\u00A0/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+
         let seconds = 0;
         const h = t.match(/(\d+)\s*h\b/);
         const min = t.match(/(\d+)\s*min\b/);
@@ -705,17 +858,38 @@
         return parseTimeToSeconds(row.textContent);
       }
 
+      function getVehicleTypeIdFromCandidate(row, cb) {
+        const raw =
+          cb?.getAttribute('vehicle_type_id') ||
+          cb?.getAttribute('vehicle_type-id') ||
+          row?.getAttribute('vehicle_type_id') ||
+          row?.querySelector('[vehicle_type_id]')?.getAttribute('vehicle_type_id');
+
+        const n = parseInt(String(raw ?? '').trim(), 10);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function getAllowedTypeSet() {
+        const arr = getModuleSetting(MODULE_ID, 'allowedTypeIds', [1, 8]);
+        const nums = Array.isArray(arr) ? arr.map((x) => parseInt(x, 10)).filter((x) => Number.isFinite(x)) : [1, 8];
+        return new Set(nums);
+      }
+
       function collectCandidates(container) {
+        const allowed = getAllowedTypeSet();
+
         const rows = Array.from(container.querySelectorAll('tr'));
         const useRows = rows.length ? rows : Array.from(container.querySelectorAll('li, .row, .vehicle'));
+
         return useRows
           .map((row) => {
             const text = (row.innerText || row.textContent || '').trim();
             const cb = getRowCheckbox(row);
             const sec = getRowMetricSeconds(row);
-            return { row, text, cb, sec };
+            const typeId = getVehicleTypeIdFromCandidate(row, cb);
+            return { row, text, cb, sec, typeId };
           })
-          .filter((x) => x.cb && !x.cb.disabled && x.sec !== null && !excludedNameRegex.test(x.text));
+          .filter((x) => x.cb && !x.cb.disabled && x.sec !== null && x.typeId !== null && allowed.has(x.typeId));
       }
 
       async function clickLoadMoreOnceIfAvailable() {
@@ -723,7 +897,7 @@
         const loadBtn = document.querySelector(loadMoreSelectorExact);
         if (!loadBtn) return false;
         loadMoreUsedThisRun = true;
-        ctx.log('[Nearest] Clicking load-more ONCE');
+        ctx.log('[FastSend] Clicking load-more ONCE');
         loadBtn.click();
         await sleep(900);
         return true;
@@ -747,21 +921,24 @@
         if (!container) throw new Error('Nenašel jsem seznam/tabulku vozidel.');
 
         let candidates = collectCandidates(container);
-        ctx.log('[Nearest] Candidates pass1:', candidates.length);
+        ctx.log('[FastSend] Candidates pass1:', candidates.length);
 
         if (!candidates.length) {
           const didLoad = await clickLoadMoreOnceIfAvailable();
           if (didLoad) {
             candidates = collectCandidates(container);
-            ctx.log('[Nearest] Candidates pass2:', candidates.length);
+            ctx.log('[FastSend] Candidates pass2:', candidates.length);
           }
         }
 
-        if (!candidates.length) throw new Error('Nenašel jsem vhodnou jednotku.');
+        if (!candidates.length) {
+          throw new Error('Nenašel jsem vhodnou jednotku (zkontroluj povolené typy v nastavení modulu).');
+        }
 
         candidates.sort((a, b) => a.sec - b.sec);
         const chosen = candidates[0];
-        ctx.log('[Nearest] Chosen:', chosen.sec, 's', chosen.text);
+
+        ctx.log('[FastSend] Chosen:', chosen.sec, 's', `(type ${chosen.typeId})`, chosen.text);
 
         for (const r of candidates) {
           if (r.cb.checked) r.cb.click();
@@ -784,77 +961,83 @@
         await sleep(250);
       }
 
-      window.addEventListener('keydown', async (e) => {
-        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
-        const inTyping = tag === 'input' || tag === 'textarea' || e.target?.isContentEditable;
-        if (inTyping || e.repeat) return;
+      window.addEventListener(
+        'keydown',
+        async (e) => {
+          const tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
+          const inTyping = tag === 'input' || tag === 'textarea' || e.target?.isContentEditable;
+          if (inTyping || e.repeat) return;
 
-        // Hotkey: čisté N
-        if (e.code === 'KeyN' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-          // respektuj enable stav modulu
-          if (!isEnabled('nearest_unit_send_next', true)) return;
+          if (e.code === 'KeyN' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+            if (!isEnabled(MODULE_ID, true)) return;
 
-          e.preventDefault();
-          e.stopPropagation();
+            e.preventDefault();
+            e.stopPropagation();
 
-          if (busy) return;
-          busy = true;
-          loadMoreUsedThisRun = false;
+            if (busy) return;
+            busy = true;
+            loadMoreUsedThisRun = false;
 
-          try { await run(); }
-          catch (err) { console.error(err); alert(`OS Manager: ${err.message || err}`); }
-          finally { busy = false; }
-        }
-      }, true);
-    }
+            try {
+              await run();
+            } catch (err) {
+              console.error(err);
+              alert(`OS Manager: ${err.message || err}`);
+            } finally {
+              busy = false;
+            }
+          }
+        },
+        true
+      );
+    },
   });
 
   // -------------------- BOOT --------------------
   function makeCtx() {
-  return {
-    log: (...a) => CORE.debug && console.log(`[${CORE.name}]`, ...a),
-    sleep,
-    settings: {
-      get: (id, key, fallback) => getModuleSetting(id, key, fallback),
-      set: (id, key, v) => setModuleSetting(id, key, v),
-    },
-  };
-}
-
-(async function init() {
-  log('Init on', location.href);
-
-  await waitFor('body', { timeoutMs: 10000 });
-  removeOldUI();
-  ensureModal();
-  registerMenu();
-
-  // vložení ikonky vedle loga na pozadí (neblokuje init)
-  (async () => {
-    try {
-      for (let i = 0; i < 30; i++) {
-        if (insertNavbarIcon()) break;
-        await sleep(250);
-      }
-    } catch (e) {
-      console.error('[OS Manager] Navbar icon task failed:', e);
-    }
-  })();
-
-  const ctx = makeCtx();
-
-  for (const mod of CORE.modules) {
-    if (!pageMatches(mod)) continue;
-
-    try {
-      mod.init(ctx);
-      log(`Module loaded: ${mod.name}`);
-    } catch (e) {
-      console.error(e);
-      alert(`OS Manager: modul "${mod.name}" spadl při init: ${e.message || e}`);
-    }
+    return {
+      log: (...a) => CORE.debug && console.log(`[${CORE.name}]`, ...a),
+      sleep,
+      settings: {
+        get: (id, key, fallback) => getModuleSetting(id, key, fallback),
+        set: (id, key, v) => setModuleSetting(id, key, v),
+      },
+    };
   }
 
-  log('Ready ✅');
-})();
+  (async function init() {
+    log('Init on', location.href);
+
+    await waitFor('body', { timeoutMs: 10000 });
+    removeOldUI();
+    ensureModal();
+    registerMenu();
+
+    (async () => {
+      try {
+        for (let i = 0; i < 30; i++) {
+          if (typeof insertNavbarIcon === 'function' && insertNavbarIcon()) break;
+          await sleep(250);
+        }
+      } catch (e) {
+        console.error('[OS Manager] Navbar icon task failed:', e);
+      }
+    })();
+
+    const ctx = makeCtx();
+
+    for (const mod of CORE.modules) {
+      if (!pageMatches(mod)) continue;
+
+      try {
+        mod.init(ctx);
+        log(`Module loaded: ${mod.name}`);
+      } catch (e) {
+        console.error(e);
+        alert(`OS Manager: modul "${mod.name}" spadl při init: ${e.message || e}`);
+      }
+    }
+
+    log('Ready ✅');
+  })();
 })();
