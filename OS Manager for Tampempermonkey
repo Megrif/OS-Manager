@@ -1,0 +1,860 @@
+// ==UserScript==
+// @name         Operacni-stredisko.cz - OS Manager (Jakub)
+// @namespace    https://operacni-stredisko.cz/
+// @version      2.0.1
+// @description  Modular Tampermonkey manager for operacni-stredisko.cz
+// @author       Jakub
+// @match        https://www.operacni-stredisko.cz/*
+// @match        https://operacni-stredisko.cz/*
+// @run-at       document-end
+// @grant        GM_addStyle
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_registerMenuCommand
+// @grant        GM_getResourceURL
+// @resource     osmgr_icon https://raw.githubusercontent.com/Megrif/os-manager-assets/main/pngegg.png
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  // -------------------- CORE --------------------
+  const CORE = {
+    name: 'OS Manager',
+    version: '2.0.1',
+    storageKey: 'os_manager_settings_v1',
+    debug: true,
+    modules: [],
+  };
+
+  const ICON_URL = GM_getResourceURL('osmgr_icon');
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const log = (...a) => CORE.debug && console.log(`[${CORE.name}]`, ...a);
+
+  async function waitFor(selector, { timeoutMs = 15000, intervalMs = 200 } = {}) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const el = document.querySelector(selector);
+      if (el) return el;
+      await sleep(intervalMs);
+    }
+    return null;
+  }
+
+  function loadSettings() {
+    const raw = GM_getValue(CORE.storageKey, null);
+    if (!raw) return { debug: true, enabled: {}, moduleSettings: {} };
+    try { return JSON.parse(raw); } catch { return { debug: true, enabled: {}, moduleSettings: {} }; }
+  }
+  function saveSettings(s) {
+    GM_setValue(CORE.storageKey, JSON.stringify(s));
+  }
+
+  const settings = loadSettings();
+  CORE.debug = settings.debug ?? true;
+
+  function isEnabled(moduleId, defaultEnabled) {
+    const v = settings.enabled?.[moduleId];
+    return (v === undefined) ? !!defaultEnabled : !!v;
+  }
+  function setEnabled(moduleId, enabled) {
+    settings.enabled = settings.enabled || {};
+    settings.enabled[moduleId] = !!enabled;
+    saveSettings(settings);
+  }
+  function getModuleSetting(moduleId, key, fallback) {
+    settings.moduleSettings = settings.moduleSettings || {};
+    settings.moduleSettings[moduleId] = settings.moduleSettings[moduleId] || {};
+    const v = settings.moduleSettings[moduleId][key];
+    return v === undefined ? fallback : v;
+  }
+  function setModuleSetting(moduleId, key, value) {
+    settings.moduleSettings = settings.moduleSettings || {};
+    settings.moduleSettings[moduleId] = settings.moduleSettings[moduleId] || {};
+    settings.moduleSettings[moduleId][key] = value;
+    saveSettings(settings);
+  }
+
+  function registerModule(mod) {
+    if (!mod?.id) throw new Error('Module missing id');
+    CORE.modules.push(mod);
+  }
+
+  function pageMatches(mod) {
+    if (typeof mod.match === 'function') return !!mod.match(location.href);
+    if (mod.runOn === 'mission') {
+      return /\/missions\/\d+\/?/.test(location.pathname) || /\/einsaetze\/\d+\/?/.test(location.pathname);
+    }
+    if (mod.runOn === 'any') return true;
+    return true;
+  }
+
+  function registerMenu() {
+    GM_registerMenuCommand('OS Manager: Toggle Debug', () => {
+      CORE.debug = !CORE.debug;
+      settings.debug = CORE.debug;
+      saveSettings(settings);
+      alert(`OS Manager debug: ${CORE.debug ? 'ZAP' : 'VYP'}`);
+    });
+  }
+
+  // -------------------- UI (NAV ICON + CENTER MODAL + TABS) --------------------
+  GM_addStyle(`
+    /* navbar icon button */
+#osmgr-navbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 6px;
+  margin-left: 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  /* ⬇ POSUN DOLŮ */
+  transform: translateY(7px);
+}
+
+/* samotná ikonka */
+#osmgr-navbtn img {
+  height: 25px;                 /* lehce větší */
+  width: auto;
+  display: block;
+
+  /* MODRÝ TÓN místo červeného */
+  filter:
+    hue-rotate(350deg)
+    saturate(1.4)
+    brightness(1.1)
+    drop-shadow(0 1px 3px rgba(0,0,0,0.45));
+
+  transition: transform 0.15s ease;
+}
+
+/* ČERVENÁ – hover */
+#osmgr-navbtn:hover img {
+  transform: translateY(-1px) scale(1.05);
+  filter:
+    hue-rotate(100deg)
+    saturate(1.6)
+    brightness(1.15)
+    drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+}
+
+/* klik */
+#osmgr-navbtn:active img {
+  transform: translateY(0) scale(0.97);
+}
+
+    /* overlay + modal */
+    #osmgr-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483646;
+      background: rgba(0,0,0,0.55);
+      display: none;
+    }
+    #osmgr-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    #osmgr-window {
+      width: 1100px;
+      max-width: calc(92vw);
+      max-height: calc(88vh);
+      overflow: hidden;
+      border-radius: 14px;
+      background: #111;
+      color: #fff;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    /* header */
+    .osmgr-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 12px 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    .osmgr-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+    }
+    .osmgr-title img {
+      height: 22px;
+      width: auto;
+    }
+    .osmgr-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .osmgr-close {
+      border: 0;
+      background: rgba(255,255,255,0.10);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .osmgr-close:hover { background: rgba(255,255,255,0.16); }
+
+    .osmgr-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.80);
+      user-select: none;
+    }
+
+    /* body layout: tabs + content */
+    .osmgr-body {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 0;
+    }
+    .osmgr-tabs {
+      border-right: 1px solid rgba(255,255,255,0.10);
+      padding: 10px;
+      overflow: auto;
+    }
+    .osmgr-tab {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      margin-bottom: 8px;
+    }
+    .osmgr-tab:hover { background: rgba(255,255,255,0.07); }
+    .osmgr-tab.active {
+      background: rgba(43,124,255,0.20);
+      border-color: rgba(43,124,255,0.38);
+    }
+    .osmgr-gear {
+  border: 0;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.osmgr-gear:hover { background: rgba(255,255,255,0.14); }
+.osmgr-gear:active { transform: scale(0.98); }
+.osmgr-gear span { font-size: 16px; line-height: 1; }
+    }
+    .osmgr-tab-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .osmgr-dot {
+      width: 10px; height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.45);
+    }
+    .osmgr-dot.on { background: #2ecc71; }
+    .osmgr-dot.off { background: #e74c3c; }
+    .osmgr-tab-name {
+      font-weight: 800;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .osmgr-content {
+      padding: 14px 14px 16px 14px;
+      overflow: auto;
+      min-height: 0;
+    }
+    .osmgr-h2 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      font-weight: 900;
+    }
+    .osmgr-muted {
+      color: rgba(255,255,255,0.72);
+      font-size: 12px;
+      line-height: 1.4;
+      margin: 0 0 12px 0;
+    }
+    .osmgr-card {
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .osmgr-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      flex-wrap: wrap;
+    }
+    .osmgr-btn {
+      border: 0;
+      background: #2b7cff;
+      color: #fff;
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .osmgr-btn:hover { filter: brightness(1.05); }
+
+    @media (max-width: 720px) {
+      .osmgr-body { grid-template-columns: 1fr; }
+      .osmgr-tabs { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
+    }
+  `);
+
+  function removeOldUI() {
+    document.getElementById('osmgr-navbtn')?.remove();
+    document.getElementById('osmgr-overlay')?.remove();
+    document.getElementById('osmgr-modal')?.remove();
+  }
+
+  function ensureModal() {
+    if (document.getElementById('osmgr-modal')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'osmgr-overlay';
+
+    const modal = document.createElement('div');
+    modal.id = 'osmgr-modal';
+
+    const win = document.createElement('div');
+    win.id = 'osmgr-window';
+
+    const header = document.createElement('div');
+    header.className = 'osmgr-header';
+
+    const title = document.createElement('div');
+    title.className = 'osmgr-title';
+    const titleIcon = document.createElement('img');
+    titleIcon.src = ICON_URL;
+    titleIcon.alt = 'OS Manager';
+    const titleText = document.createElement('div');
+    titleText.textContent = `${CORE.name} v${CORE.version}`;
+    title.append(titleIcon, titleText);
+
+    const actions = document.createElement('div');
+    actions.className = 'osmgr-actions';
+
+    const dbgWrap = document.createElement('label');
+    dbgWrap.className = 'osmgr-toggle';
+    const dbgCb = document.createElement('input');
+    dbgCb.type = 'checkbox';
+    dbgCb.checked = CORE.debug;
+    dbgCb.onchange = () => {
+      CORE.debug = !!dbgCb.checked;
+      settings.debug = CORE.debug;
+      saveSettings(settings);
+      log('Debug:', CORE.debug);
+      // refresh dots (debug change is global, but we keep UI consistent)
+    };
+    const dbgText = document.createElement('span');
+    dbgText.textContent = 'Debug';
+    dbgWrap.append(dbgCb, dbgText);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'osmgr-close';
+    closeBtn.type = 'button';
+    closeBtn.textContent = 'Zavřít';
+    closeBtn.onclick = () => hideModal();
+
+    actions.append(dbgWrap, closeBtn);
+    header.append(title, actions);
+
+    const body = document.createElement('div');
+    body.className = 'osmgr-body';
+
+    const tabs = document.createElement('div');
+    tabs.className = 'osmgr-tabs';
+    tabs.id = 'osmgr-tabs';
+
+    const content = document.createElement('div');
+    content.className = 'osmgr-content';
+    content.id = 'osmgr-content';
+
+    body.append(tabs, content);
+    win.append(header, body);
+    modal.append(win);
+
+    // close handlers
+    overlay.addEventListener('click', hideModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) hideModal();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isModalOpen()) hideModal();
+    });
+
+    document.body.append(overlay, modal);
+  }
+
+  function isModalOpen() {
+    const modal = document.getElementById('osmgr-modal');
+    return modal && modal.style.display === 'flex';
+  }
+
+  function showModal(selectModuleId = null) {
+    ensureModal();
+    renderTabsAndContent(selectModuleId ?? null);
+
+    document.getElementById('osmgr-overlay').style.display = 'block';
+    const modal = document.getElementById('osmgr-modal');
+    modal.style.display = 'flex';
+  }
+
+  function hideModal() {
+    const overlay = document.getElementById('osmgr-overlay');
+    const modal = document.getElementById('osmgr-modal');
+    if (overlay) overlay.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+  }
+
+  function renderTabsAndContent(selectModuleId = null) {
+  const tabsEl = document.getElementById('osmgr-tabs');
+  const contentEl = document.getElementById('osmgr-content');
+  if (!tabsEl || !contentEl) return;
+
+  tabsEl.innerHTML = '';
+
+  // Když není vybraný modul, neukazuj detail žádného
+  if (!selectModuleId) {
+    contentEl.innerHTML = `
+      <div class="osmgr-h2">OS Manager</div>
+      <div class="osmgr-muted">
+        Vyber modul vlevo a klikni na ⚙️ pro otevření detailu nastavení.
+      </div>
+    `;
+  }
+
+  const setActiveRow = (moduleIdOrNull) => {
+    tabsEl.querySelectorAll('.osmgr-tab').forEach((t) => {
+      t.classList.toggle('active', !!moduleIdOrNull && t.dataset.moduleId === moduleIdOrNull);
+    });
+  };
+
+  const openModuleDetail = (moduleId) => {
+    setActiveRow(moduleId);
+    renderModuleContent(moduleId);
+  };
+
+  for (const mod of CORE.modules) {
+    const enabled = isEnabled(mod.id, mod.defaultEnabled);
+
+    const tab = document.createElement('div');
+    tab.className = 'osmgr-tab' + (mod.id === selectModuleId ? ' active' : '');
+    tab.dataset.moduleId = mod.id;
+
+    const left = document.createElement('div');
+    left.className = 'osmgr-tab-left';
+
+    const dot = document.createElement('div');
+    dot.className = `osmgr-dot ${enabled ? 'on' : 'off'}`;
+    dot.title = enabled ? 'Modul zapnutý' : 'Modul vypnutý';
+
+    const name = document.createElement('div');
+    name.className = 'osmgr-tab-name';
+    name.textContent = mod.name;
+
+    left.append(dot, name);
+
+    // ⚙️ tlačítko pro otevření detailu
+    const gear = document.createElement('button');
+    gear.className = 'osmgr-gear';
+    gear.type = 'button';
+    gear.title = 'Nastavení modulu';
+    gear.innerHTML = '<span>⚙️</span>';
+
+    gear.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openModuleDetail(mod.id);
+    });
+
+    // Klik na řádek jen zvýrazní (neotevře detail)
+    tab.addEventListener('click', () => {
+      setActiveRow(mod.id);
+      if (!selectModuleId) {
+        // nech placeholder, jen zvýrazni řádek
+      }
+    });
+
+    tab.append(left, gear);
+    tabsEl.append(tab);
+  }
+}
+
+
+  function refreshDots() {
+    const tabsEl = document.getElementById('osmgr-tabs');
+    if (!tabsEl) return;
+    tabsEl.querySelectorAll('.osmgr-tab').forEach((t) => {
+      const id = t.dataset.moduleId;
+      const mod = CORE.modules.find((m) => m.id === id);
+      if (!mod) return;
+      const enabled = isEnabled(id, mod.defaultEnabled);
+      const dot = t.querySelector('.osmgr-dot');
+      if (!dot) return;
+      dot.classList.toggle('on', enabled);
+      dot.classList.toggle('off', !enabled);
+      dot.title = enabled ? 'Modul zapnutý' : 'Modul vypnutý';
+    });
+  }
+
+  function renderModuleContent(moduleId) {
+    const contentEl = document.getElementById('osmgr-content');
+    if (!contentEl) return;
+
+    const mod = CORE.modules.find((m) => m.id === moduleId);
+    if (!mod) {
+      contentEl.innerHTML = `<div class="osmgr-muted">Modul nenalezen.</div>`;
+      return;
+    }
+
+    const enabled = isEnabled(mod.id, mod.defaultEnabled);
+
+    const h2 = document.createElement('div');
+    h2.className = 'osmgr-h2';
+    h2.textContent = mod.name;
+
+    const desc = document.createElement('div');
+    desc.className = 'osmgr-muted';
+    desc.textContent = mod.description || '';
+
+    const card = document.createElement('div');
+    card.className = 'osmgr-card';
+
+    const row = document.createElement('div');
+    row.className = 'osmgr-row';
+
+    const enableLabel = document.createElement('label');
+    enableLabel.className = 'osmgr-toggle';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = enabled;
+    cb.onchange = () => {
+      setEnabled(mod.id, cb.checked);
+      refreshDots();
+    };
+    const txt = document.createElement('span');
+    txt.textContent = cb.checked ? 'Aktivní' : 'Neaktivní';
+
+    cb.addEventListener('change', () => {
+      txt.textContent = cb.checked ? 'Aktivní' : 'Neaktivní';
+    });
+
+    enableLabel.append(cb, txt);
+
+    const info = document.createElement('div');
+    info.className = 'osmgr-muted';
+    info.textContent = 'Pozn.: detailní nastavení tohoto modulu doplníme později.';
+
+    row.append(enableLabel);
+    card.append(row, info);
+
+    // extra: quick note about refresh (only if module is currently running)
+    const note = document.createElement('div');
+    note.className = 'osmgr-muted';
+    note.textContent = 'Tip: pokud modul vypneš/zapneš, někdy je nejlepší refresh stránky, aby se změna plně projevila.';
+
+    contentEl.innerHTML = '';
+    contentEl.append(h2, desc, card, note);
+  }
+
+  function insertNavbarIcon() {
+    // cílový element (rodič loga, který jsi poslal)
+    const brandAnchor = document.querySelector('a.navbar-brand.hidden-xs');
+    if (!brandAnchor) return false;
+
+    // pokud už existuje, nic nedělej
+    if (document.getElementById('osmgr-navbtn')) return true;
+
+    const btn = document.createElement('button');
+    btn.id = 'osmgr-navbtn';
+    btn.type = 'button';
+    btn.title = `${CORE.name}`;
+
+    const img = document.createElement('img');
+    img.src = ICON_URL;
+    img.alt = 'OS Manager';
+
+    // fallback kdyby externí obrázek nešel načíst (CSP apod.)
+    img.addEventListener('error', () => {
+      btn.textContent = '🚨';
+      btn.style.fontSize = '18px';
+      btn.style.lineHeight = '1';
+      btn.style.marginLeft = '10px';
+    });
+
+    btn.append(img);
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showModal();
+    });
+
+    // vložit hned napravo od loga (anchor)
+    brandAnchor.insertAdjacentElement('afterend', btn);
+    return true;
+  }
+
+  // -------------------- MODULE: NearestUnit --------------------
+  registerModule({
+    id: 'nearest_unit_send_next',
+    name: 'Nearest Unit → Send+Next (N)',
+    description: 'Na detailu mise stiskni N: vybere nejbližší jednotku (čas), vyfiltruje výjimky, klikne na šipku (odeslat+další).',
+    defaultEnabled: true,
+    runOn: 'mission',
+
+    init(ctx) {
+      const excludedNameRegex = new RegExp(
+        [
+          '\\b(vrtulník|helicopter|heli)\\b',
+          'kryštof',
+          'ls\\s*pčr',
+          '\\bRZP\\b',
+          '\\bRLP\\b',
+          '\\bRV\\b',
+          'inspektor\\s*provozu',
+          '\\bkontejner(y|ů|u|a)?\\b',
+          'nosič(e)?\\s*kontejner(u|ů|a|y)?',
+          'automobil(ový|ove)?\\s*nosič\\s*kontejner'
+        ].join('|'),
+        'i'
+      );
+
+      const vehicleContainers = [
+        '#vehicle_show_table',
+        '#vehicle_show_table_all',
+        '#vehicle_select_table',
+        'table#vehicle_table',
+        'table.vehicles',
+        'table'
+      ];
+
+      const loadMoreSelectorExact = 'a.missing_vehicles_load[href*="missing_vehicles"]';
+      const arrowIconSelector = 'span.glyphicon.glyphicon-arrow-right';
+
+      let busy = false;
+      let loadMoreUsedThisRun = false;
+
+      function parseTimeToSeconds(text) {
+        const t = String(text || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+        let seconds = 0;
+        const h = t.match(/(\d+)\s*h\b/);
+        const min = t.match(/(\d+)\s*min\b/);
+        const sec = t.match(/(\d+)\s*s\b/);
+        if (h) seconds += parseInt(h[1], 10) * 3600;
+        if (min) seconds += parseInt(min[1], 10) * 60;
+        if (sec) seconds += parseInt(sec[1], 10);
+        return seconds > 0 ? seconds : null;
+      }
+
+      function firstExisting(selectors) {
+        for (const sel of selectors) {
+          const found = document.querySelector(sel);
+          if (found) return found;
+        }
+        return null;
+      }
+
+      function getRowCheckbox(row) {
+        return row.querySelector('input.vehicle_checkbox[type="checkbox"][name="vehicle_ids[]"]') || null;
+      }
+
+      function getRowMetricSeconds(row) {
+        const cells = Array.from(row.querySelectorAll('td'));
+        for (const td of cells) {
+          const sec = parseTimeToSeconds(td.textContent);
+          if (sec !== null) return sec;
+        }
+        return parseTimeToSeconds(row.textContent);
+      }
+
+      function collectCandidates(container) {
+        const rows = Array.from(container.querySelectorAll('tr'));
+        const useRows = rows.length ? rows : Array.from(container.querySelectorAll('li, .row, .vehicle'));
+        return useRows
+          .map((row) => {
+            const text = (row.innerText || row.textContent || '').trim();
+            const cb = getRowCheckbox(row);
+            const sec = getRowMetricSeconds(row);
+            return { row, text, cb, sec };
+          })
+          .filter((x) => x.cb && !x.cb.disabled && x.sec !== null && !excludedNameRegex.test(x.text));
+      }
+
+      async function clickLoadMoreOnceIfAvailable() {
+        if (loadMoreUsedThisRun) return false;
+        const loadBtn = document.querySelector(loadMoreSelectorExact);
+        if (!loadBtn) return false;
+        loadMoreUsedThisRun = true;
+        ctx.log('[Nearest] Clicking load-more ONCE');
+        loadBtn.click();
+        await sleep(900);
+        return true;
+      }
+
+      function findArrowSendButton() {
+        const icons = Array.from(document.querySelectorAll(arrowIconSelector));
+        for (const icon of icons) {
+          const parent = icon.closest('a,button,input[type="submit"]');
+          if (!parent) continue;
+          if (parent.disabled) continue;
+          const style = window.getComputedStyle(parent);
+          if (style && style.display === 'none') continue;
+          return parent;
+        }
+        return null;
+      }
+
+      async function run() {
+        const container = firstExisting(vehicleContainers);
+        if (!container) throw new Error('Nenašel jsem seznam/tabulku vozidel.');
+
+        let candidates = collectCandidates(container);
+        ctx.log('[Nearest] Candidates pass1:', candidates.length);
+
+        if (!candidates.length) {
+          const didLoad = await clickLoadMoreOnceIfAvailable();
+          if (didLoad) {
+            candidates = collectCandidates(container);
+            ctx.log('[Nearest] Candidates pass2:', candidates.length);
+          }
+        }
+
+        if (!candidates.length) throw new Error('Nenašel jsem vhodnou jednotku.');
+
+        candidates.sort((a, b) => a.sec - b.sec);
+        const chosen = candidates[0];
+        ctx.log('[Nearest] Chosen:', chosen.sec, 's', chosen.text);
+
+        for (const r of candidates) {
+          if (r.cb.checked) r.cb.click();
+          await sleep(2);
+        }
+
+        chosen.row.scrollIntoView({ block: 'center' });
+        chosen.row.click();
+        await sleep(60);
+
+        if (!chosen.cb.checked) chosen.cb.click();
+        chosen.cb.dispatchEvent(new Event('input', { bubbles: true }));
+        chosen.cb.dispatchEvent(new Event('change', { bubbles: true }));
+        await sleep(200);
+
+        const arrowBtn = findArrowSendButton();
+        if (!arrowBtn) throw new Error('Nenašel jsem tlačítko se šipkou (odeslat+další).');
+
+        arrowBtn.click();
+        await sleep(250);
+      }
+
+      window.addEventListener('keydown', async (e) => {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        const inTyping = tag === 'input' || tag === 'textarea' || e.target?.isContentEditable;
+        if (inTyping || e.repeat) return;
+
+        // Hotkey: čisté N
+        if (e.code === 'KeyN' && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+          // respektuj enable stav modulu
+          if (!isEnabled('nearest_unit_send_next', true)) return;
+
+          e.preventDefault();
+          e.stopPropagation();
+
+          if (busy) return;
+          busy = true;
+          loadMoreUsedThisRun = false;
+
+          try { await run(); }
+          catch (err) { console.error(err); alert(`OS Manager: ${err.message || err}`); }
+          finally { busy = false; }
+        }
+      }, true);
+    }
+  });
+
+  // -------------------- BOOT --------------------
+  function makeCtx() {
+  return {
+    log: (...a) => CORE.debug && console.log(`[${CORE.name}]`, ...a),
+    sleep,
+    settings: {
+      get: (id, key, fallback) => getModuleSetting(id, key, fallback),
+      set: (id, key, v) => setModuleSetting(id, key, v),
+    },
+  };
+}
+
+(async function init() {
+  log('Init on', location.href);
+
+  await waitFor('body', { timeoutMs: 10000 });
+  removeOldUI();
+  ensureModal();
+  registerMenu();
+
+  // vložení ikonky vedle loga na pozadí (neblokuje init)
+  (async () => {
+    try {
+      for (let i = 0; i < 30; i++) {
+        if (insertNavbarIcon()) break;
+        await sleep(250);
+      }
+    } catch (e) {
+      console.error('[OS Manager] Navbar icon task failed:', e);
+    }
+  })();
+
+  const ctx = makeCtx();
+
+  for (const mod of CORE.modules) {
+    if (!pageMatches(mod)) continue;
+
+    try {
+      mod.init(ctx);
+      log(`Module loaded: ${mod.name}`);
+    } catch (e) {
+      console.error(e);
+      alert(`OS Manager: modul "${mod.name}" spadl při init: ${e.message || e}`);
+    }
+  }
+
+  log('Ready ✅');
+})();
+})();
