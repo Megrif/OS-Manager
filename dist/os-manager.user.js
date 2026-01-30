@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         OS Manager_dev
+// @name         OS Manager
 // @namespace    http://tampermonkey.net/
 // @version      1.0.1
 // @description  Vylepšení pro hru Operační středisko
