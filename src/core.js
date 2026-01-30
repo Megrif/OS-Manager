@@ -3,7 +3,7 @@ window.OSM = window.OSM || {};
 
 OSM.CORE = {
     name: 'OS Manager',
-    version: '2.2.0',
+    version: '1.0.1',
     storageKey: 'os_manager_settings_v1',
     debug: true,
     modules: [],

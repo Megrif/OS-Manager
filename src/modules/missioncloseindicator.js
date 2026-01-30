@@ -5,7 +5,7 @@ OSM.registerModule({
     id: 'mission_close_indicator',
     name: 'Indikátor potřeby uzavření',
     description: 'Barevná tečka podle expirace: Zelená (Nepropadne), Červená (Propadne).',
-    defaultEnabled: true,
+    defaultEnabled: false,
     frequency: 'NONE', // Nový systém: Spouštěno přes onInit jádra
 
     // Tato funkce se zavolá při každém načtení stránky nebo změně URL v modálu

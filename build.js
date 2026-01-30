@@ -4,7 +4,7 @@ const path = require('path');
 // --- KONFIGURACE ---
 const SRC_DIR = 'src';
 const DIST_FILE = 'dist/os-manager.user.js';
-const SCRIPT_VERSION = '1.0.0'; 
+const SCRIPT_VERSION = '1.0.1'; 
 // -------------------
 
 const scriptHeader = `// ==UserScript==

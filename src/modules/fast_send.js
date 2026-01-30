@@ -5,7 +5,7 @@ OSM.registerModule({
     id: 'nearest_unit_send_next',
     name: 'Rychlé odesílání',
     description: 'Tento modul za vás vybere jednu nejbližší jednotku, odešle ji a přejde na další misi.<br>Lze spustit automatický režim stiskem Shift a nastavené klavesy.<br>Jakmile dojde automat na poslední misi kde nemáte jednotku, po jejím odeslání se sám vypne.',
-    defaultEnabled: true,
+    defaultEnabled: false,
     frequency: 'NONE',
 
     onInit(url, pageType) {

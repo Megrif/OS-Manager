@@ -5,7 +5,7 @@ OSM.registerModule({
     id: 'owner_online_status',
     name: 'Ukazatel online stavu majitele mise',
     description: 'V seznamu misí zobrazuje jméno majitele a barevnou tečku (Zelená = Online).',
-    defaultEnabled: true,
+    defaultEnabled: false,
     frequency: 'NONE',
 
     allianceData: null,
@@ -85,7 +85,7 @@ OSM.registerModule({
 
     async fetchAllianceData() {
         const CACHE_KEY = 'osmgr_alliance_cache';
-        const MAX_AGE = 60 * 60 * 1000; 
+        const MAX_AGE = 5 * 60 * 1000; 
 
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {

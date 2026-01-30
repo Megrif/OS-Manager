@@ -435,13 +435,24 @@ OSM.renderModuleContent = function(moduleId) {
   `;
 
   document.getElementById('mod-enabled-check').onchange = (e) => {
+    const isNowEnabled = e.target.checked;
+    
     OSM.settings.enabled = OSM.settings.enabled || {};
-    OSM.settings.enabled[mod.id] = e.target.checked;
+    OSM.settings.enabled[mod.id] = isNowEnabled;
     OSM.saveSettings();
-    document.getElementById('mod-enabled-text').textContent = e.target.checked ? 'Aktivní' : 'Neaktivní';
+    
+    document.getElementById('mod-enabled-text').textContent = isNowEnabled ? 'Aktivní' : 'Neaktivní';
     
     // Refresh pouze menu pro aktualizaci barev teček
-    OSM.renderTabsAndContent(); 
+    OSM.renderTabsAndContent();
+
+    // SPECIÁLNÍ LOGIKA: Pokud se zapnul Online Status, obnovíme celou stránku
+    if (mod.id === 'owner_online_status' && isNowEnabled) {
+        // Malá prodleva, aby uživatel viděl, že se tlačítko přeplo, než to blikne
+        setTimeout(() => {
+            window.location.reload();
+        }, 300);
+    }
   };
 
   // Pokud má modul vlastní vykreslování nastavení (např. výběr aut ve FastSend)
